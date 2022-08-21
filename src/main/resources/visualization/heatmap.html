@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Event Calendar Heatmap</title>
+
+    <link rel="stylesheet" href="cal-heatmap.css" />
+    <style>
+    .graph-label {
+        font-family: "Arial";
+        fill: #000 !important
+    }
+    </style>
+  </head>
+  <body>
+
+<script type="text/javascript" src="d3.min.js" charset="utf-8"></script>
+<script type="text/javascript" src="cal-heatmap.min.js"></script>
+
+    <div id="cal-heatmap"></div>
+
+<script type="text/javascript">
+Legend.prototype.buildColors = function() {
+	"use strict";
+
+	var options = this.calendar.options; // Shorter accessor for variable name mangling when minifying
+
+	if (options.legendColors === null) {
+		this.calendar.legendScale = null;
+		return false;
+	}
+
+	var _colorRange = [];
+
+	if (Array.isArray(options.legendColors)) {
+		_colorRange = options.legendColors;
+	} else if (options.legendColors.hasOwnProperty("min") && options.legendColors.hasOwnProperty("max")) {
+		_colorRange = [options.legendColors.min, options.legendColors.max];
+	} else {
+		options.legendColors = null;
+		return false;
+	}
+
+	var _legend = options.legend.slice(0);
+
+	if (_legend[0] > 0) {
+		_legend.unshift(0);
+	} else if (_legend[0] < 0) {
+		// Let's guess the leftmost value, it we have to add one
+		_legend.unshift(_legend[0] - (_legend[_legend.length-1] - _legend[0])/_legend.length);
+	}
+
+	var colorScale = d3.scale.linear()
+		.range(_colorRange)
+		.interpolate(function(a, b) {
+			a = d3.hsl(a);
+			b = d3.hsl(b);
+			var h = a.h, s = a.s, al = a.l, bl = b.l - al;
+			return function(t) {
+				return d3.hsl(h, s, al + bl * t) + "";
+			};
+		})
+		.domain([d3.min(_legend), d3.max(_legend)])
+	;
+
+	var legendColors = _legend.map(function(element) { return colorScale(element); });
+	this.calendar.legendScale = d3.scale.linear().domain(options.legend).range(legendColors);
+
+	return true;
+};
+
+  var cal = new CalHeatMap();
+  cal.init({
+    data: "events-b.json",
+    domain: "month",
+    start: new Date(2012, 1, 1),
+    end: new Date(2012, 6, 1),
+    legend: [0, 5, 10, 15, 20],
+    legendColors: {
+		min: d3.hsl(200, 1.0, 0.85),
+		max: d3.hsl(200, 1.0, 0.15),
+	}
+  });
+</script>
+
+  </body>
+</html>

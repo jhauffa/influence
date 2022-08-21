@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>SCIM Coefficient Tree Chart</title>
+  </head>
+  <body>
+
+<script src="d3.min.js" charset="utf-8"></script>
+<script src="data.json" charset="utf-8"></script>
+
+<script>
+// adapted from http://bl.ocks.org/d3noob/8324872
+
+function countLeaves(o) {
+  if ("children" in o) {
+    var sum = 0;
+    for (var i = 0; i < o.children.length; i++)
+      sum += countLeaves(o.children[i]);
+    return sum;
+  }
+  return 1;
+}
+
+// ************** Generate the tree diagram *****************
+var margin = {top: 50, right: 120, bottom: 50, left: 120},
+ width = 960 - margin.right - margin.left,
+ height = 360 - margin.top - margin.bottom,
+ hue = 200, saturation = 1.0, minLightness = 0.25,
+ scale = 100.0;
+var fontFamily = "Arial, sans-serif",
+ fontSizeLarge = "14px", fontSizeSmall = "12px";
+
+// scale height according to number of coefficients + tuning factor
+var coeffCount = countLeaves(treeData);
+height *= coeffCount / 13;
+
+var tree = d3.layout.tree()
+ .size([height, width]);
+
+var diagonal = d3.svg.diagonal()
+ .projection(function(d) { return [d.y, d.x]; });
+
+var svg = d3.select("body").append("svg")
+ .attr("width", width + margin.right + margin.left)
+ .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+ .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+// Compute the new tree layout.
+var nodes = tree.nodes(treeData),
+ links = tree.links(nodes);
+
+// Normalize for fixed-depth.
+nodes.forEach(function(d) { d.y = d.depth * 180; });
+
+// Declare the nodes
+var idx = 0;
+var node = svg.selectAll("g.node")
+ .data(nodes, function(d) { return d.id || (d.id = ++idx); });
+
+// Enter the nodes
+var nodeEnter = node.enter().append("g")
+ .attr("class", "node")
+ .attr("transform", function(d) {
+  d.offset = 0.0;
+  if (d.parent) {	// not root node
+    var curChildren = d.parent.children;
+    for (var i = 0; i < curChildren.length; i++) {
+      if (curChildren[i] == d)
+        break;
+      d.offset += curChildren[i].mean * scale;
+    }
+    d.offset += d.parent.offset + ((d.mean * scale) / 2.0);
+    d.offset -= (d.parent.mean * scale) / 2.0;
+  }
+  return "translate(" + d.y + "," + (d.x + d.offset) + ")"; });
+
+// node labels
+nodeEnter.append("text")
+ .attr("x", function(d) {
+  return d.children ? -13 : 13; })
+ .attr("dy", ".35em")
+ .attr("font-family", fontFamily)
+ .attr("font-size", fontSizeLarge)
+ .attr("text-anchor", function(d) {
+  return d.children ? "end" : "start"; })
+ .text(function(d) { return d.name; })
+ .style("paint-order", "stroke")
+ .style("fill", "#000")
+ .style("fill-opacity", 1)
+ .style("stroke", "#fff")
+ .style("stroke-width", 2.5);
+
+// edge labels: mean, std.dev
+nodeEnter.append("text")
+ .attr("x", function(d) {
+  return d.children ? -13 : -20; })
+ .attr("dy", function(d) {
+  return d.children ? "1.5em" : ".35em"; })
+ .attr("font-family", fontFamily)
+ .attr("font-size", fontSizeSmall)
+ .attr("text-anchor", "end")
+ .text(function(d) {
+  if (d.name == "")
+    return "";	// skip root node
+  str = "μ";
+  if ((d.mean > 0.0) && (d.mean < 0.01)) {
+    str += "<0.01";
+  } else {
+    str += "=" + d.mean.toFixed(2);
+  }
+  str += ", σ";
+  if ((d.stddev > 0.0) && (d.stddev < 0.01)) {
+    str += "<0.01";
+  } else {
+    str += "=" + d.stddev.toFixed(2);
+  }
+  return str; })
+ .style("paint-order", "stroke")
+ .style("fill", "#000")
+ .style("fill-opacity", 1)
+ .style("stroke", "#fff")
+ .style("stroke-width", 2.5);
+
+// Declare the links
+var link = svg.selectAll("path.link")
+ .data(links, function(d) { return d.target.id; });
+
+// Enter the links
+link.enter().insert("path", "g")
+ .attr("class", "link")
+ .attr("d", diagonal)
+ .attr("fill", "none")
+ .attr("stroke", function(d) {
+  var rsd = Math.min(1.0, d.target.stddev / d.target.mean);
+  var lightness = minLightness + (rsd * (1.0 - (2.0 * minLightness)));
+  return d3.hsl(hue, saturation, lightness); })
+ .attr("stroke-width", function(d) {
+  return (d.target.mean * scale) + "px"; })
+ .attr("transform", function(d) {
+  return "translate(0," + d.target.offset + ")"; });
+
+
+// ************** Generate the legend *****************
+var barWidth = 60, barHeight = 20,
+ barX = 0, barY = height + (barHeight / 2);
+
+// create gradient for legend
+var idGradient = "legendGradient";
+svg.append("g").append("defs").append("linearGradient")
+ .attr("id", idGradient)
+ .attr("x1", "0%")
+ .attr("x2", "100%")
+ .attr("y1", "0%")
+ .attr("y2", "0%");
+
+// add gradient-filled rectangle
+svg.append("rect")
+ .attr("fill", "url(#" + idGradient + ")")
+ .attr("x", barX)
+ .attr("y", barY)
+ .attr("width", barWidth)
+ .attr("height", barHeight);
+
+// add text on either side of the bar
+var textY = barY + barHeight + 12;
+svg.append("text")
+ .attr("text-anchor", "middle")
+ .attr("font-family", fontFamily)
+ .attr("font-size", fontSizeLarge)
+ .attr("x", barX)
+ .attr("y", textY)
+ .attr("dy", 0)
+ .text("0");
+svg.append("text")
+ .attr("text-anchor", "middle")
+ .attr("font-family", fontFamily)
+ .attr("font-size", fontSizeLarge)
+ .attr("x", barX + barWidth)
+ .attr("y", textY)
+ .attr("dy", 0)
+ .text("≥ 1");
+
+// add gradient stops; SVG cannot do HSL interpolation, so fake it
+var numSteps = 10;
+var stopData = [];
+for (var i = 0; i <= numSteps; i++) {
+  var lightness = minLightness + ((i/numSteps) * (1.0 - (2.0 * minLightness)));
+  stopData.push({ "color": d3.hsl(hue, saturation, lightness),
+   "percent": (i / numSteps) });
+}
+
+var stops = d3.select('#' + idGradient).selectAll('stop').data(stopData);
+stops.enter().append('stop')
+ .attr('offset', function(d) {
+  return d.percent; })
+ .attr('stop-color', function(d) {
+  return d.color; });
+</script>
+
+  </body>
+</html>
