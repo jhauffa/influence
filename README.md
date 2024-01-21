@@ -2,7 +2,8 @@
 
 This repository contains the source code of the main experiments conducted in the course of a PhD thesis:
 
-(A link to the thesis will be inserted here, pending its official approval.)
+"Topic-Driven Characterization of Social Relationships for the Analysis of Social Influence" (Jan Hauffa, 2023)
+https://mediatum.ub.tum.de/?id=1684883
 
 The first two experiments approach the problem of social influence detection at different levels of granularity: At the micro level, we attempt to test if a change in the behavior of one person can be explained by the earlier behavior of another, which would be evidence for a causal relationship in the sense of Granger causality. At the meso level, the detection of social influence can be reframed as a prediction problem: Which parts of a person's social environment are most useful for predicting that person's future behavior? The third and final experiment deals with the temporal distances of interactions on social media.
 
